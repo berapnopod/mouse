@@ -76,12 +76,14 @@ EndSec = int(sys.argv[6])
 EndFrame = int(sys.argv[7])
 
 #
-# Initialise three lists which correspond to the pixel and frame coordinates
-# for the mouse when tracking the shark
+# Initialise four lists which correspond to the pixel and frame coordinates
+# for the mouse when tracking the shark, plus the expand factor used to
+# try and mimic the drone always being at 60 metres.
 #
 xpos = []
 ypos = []
 tpos = []
+exppos = []
 
 #
 # Define global variables - not sure why
@@ -100,15 +102,18 @@ def draw_circle(event,x,y,flags,param):
 # videos have slightly different aspect ratios (eg. 4096x2160).
 #
 # Determine clip frame rate (fps), height and width in pixels based on original
-# clip size (capo).
+# clip size (capo). Sometimes, opencv cannot read the fps and so this has to be
+# hard-coded in.
 #
 
 capo = cv2.VideoCapture(FileNam+'.mp4')
-fps = float(capo.get(cv2.cv.CV_CAP_PROP_FPS))
+#fps = float(capo.get(cv2.cv.CV_CAP_PROP_FPS))
+fps =24.8574
 frameHeight = int(capo.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 frameWidth = int(capo.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
 sizeRatX = frameWidth/960.
 sizeRatY = frameHeight/540.
+print fps, frameHeight, frameWidth
 capo.release()
 
 #
@@ -122,25 +127,23 @@ length = eframe-sframe
 print 'Start Frame =',sframe, 'End Frame=',eframe, 'Number of Frames=', length
 
 #
-# Initialise two windows. The first is 'clip', which is the main window,
-# showing the full clip. The second is 'crop', which shows the effective
-# 300x300 pixel zoom around the mouse position. This window shows the same
-# FOV that will be saved as the postage stamp jpeg. The first frame is dislayed
-# in 'clip'. A keystroke is required to start the video, once the mouse is
-# positioned over the shark.
+# Initialise a window: 'clip', showing the full clip. A square is drawn around
+# the mouse cursor position which is equivalent to the size of the 300x300
+# pixel jpeg created at the end. There is also a black and white scale bar,
+# which is equivalent to 2 metres, when the drone is flown at 60 metres.
+# The first frame is dislayed in 'clip'. A keystroke is required to start the
+# video, once the mouse is positioned over the shark.
 #
 cap = cv2.VideoCapture(FileNam+'s.mp4')
 cv2.namedWindow('clip',cv2.WINDOW_NORMAL)
 cv2.resizeWindow('clip',1450,800)
-cv2.namedWindow('crop',cv2.WINDOW_NORMAL)
-cv2.resizeWindow('crop',450,450)
 cap.set(1,sframe)
 ret,frame = cap.read()
 cv2.imshow('clip',frame)
 cv2.waitKey(0)
 
 #
-# Loop over all 500 frames in the clip, show the frame and
+# Loop over dwall 500 frames in the clip, show the frame and
 # capture the mouse position in xpos, ypos and tpos, making sure that
 # the mouse is no closer than 226 pixels from any edge
 #
@@ -151,20 +154,41 @@ cv2.waitKey(0)
 # values for ix and iy are also different, so they need to be appended
 # to xpos and ypos with x4 bigger. 
 #
+# Also intialise expandFac to 300, so the first square drawn is 300x300 pixels.
+# The size of the box can be changed by hitting any number key.
+# If key "3" is hit, then the box will reamin at 300x300 pixels. If "4" is hit,
+# the box will increase to 400x400 pixels. This is the case for all numbers up
+# to and including "9" - ie. 900x900 pixels. If you press "0", the box
+# increases to 1200x1200 pixels, which is the a zoom factor of 4, equivalent to
+# the drone flying at 15 metres.
+#
+
+expandFac = 300
+
 for i in range(sframe,eframe):
     output_stream.write('Frame %s of %s\r' % (i-sframe, length))
     cap.set(1,i)
     ret,frame = cap.read()
 
-    cv2.imshow('clip',frame)
-    cv2.waitKey(5)
     cv2.setMouseCallback('clip',draw_circle)
-    if ix>(225/sizeRatX) and iy>(225/sizeRatY) and ix<((frameWidth-225)/sizeRatX) and iy<((frameHeight-225)/sizeRatY):
-        crop = frame[int(iy-(150/sizeRatY)):int(iy+(150/sizeRatY)), int(ix-(150/sizeRatX)):int(ix+(150/sizeRatX))]
-        cv2.imshow('crop', crop)
+    while True:
+        k = cv2.waitKey(5)
+        if k ==-1:
+            break
+        elif k == 48:
+            expandFac = 1200
+        else:
+            expandFac = 100*int(chr(k))
+    if ix>(0.75*expandFac/sizeRatX) and iy>(0.75*expandFac/sizeRatY) and ix<((frameWidth-0.75*expandFac)/sizeRatX) and iy<((frameHeight-0.75*expandFac)/sizeRatY):
+        cv2.rectangle(frame, (int(ix-(0.5*expandFac/sizeRatX)),int(iy-(0.5*expandFac/sizeRatY))),(int(ix+(0.5*expandFac/sizeRatX)),int(iy+(0.5*expandFac/sizeRatY))),(0,255,0),2)
+        cv2.line(frame, (int(ix+(0.5*expandFac/sizeRatX-10)),int(iy-(0.15*expandFac/sizeRatY))), (int(ix+(0.5*expandFac/sizeRatX-10)),int(iy-(0.15*expandFac/sizeRatY)+(0.2327*expandFac/sizeRatY))),(0,0,0),2)
+        cv2.line(frame, (int(ix+(0.5*expandFac/sizeRatX-10)),int(iy-(0.15*expandFac/sizeRatY))), (int(ix+(0.5*expandFac/sizeRatX-10)),int(iy-(0.15*expandFac/sizeRatY)+(0.2327*expandFac/sizeRatY))),(255,255,255),1)
         xpos.append(int(ix*sizeRatX))
         ypos.append(int(iy*sizeRatY))
         tpos.append(i)
+        exppos.append(expandFac)
+    cv2.imshow('clip',frame)
+    cv2.waitKey(5)
 
     #
     # The gc.collect() step is required to clean up any leaking memory.
@@ -173,19 +197,20 @@ for i in range(sframe,eframe):
     gc.collect()
 
 #
-# Release the video stream, close the clip and crop windows.
+# Release the video stream, close the clip window.
 #
 cap.release()
 cv2.destroyAllWindows()
 
-# Save lists of tpos, xpos, ypos into binary file in Arrays directory.
+# Save lists of tpos, xpos, ypos, exppos into binary file in Arrays directory.
 # This allows mouse positions to be recalled at a later date. Positions
 # can be recalled with code such as:
 #
 #with open('Arrays/'+FileNam+'.pick','rb') as f:
-#    ttpos = pickle.load(f)
-#    xxpos = pickle.load(f)
-#    yypos = pickle.load(f)
+#    tpos = pickle.load(f)
+#    xpos = pickle.load(f)
+#    ypos = pickle.load(f)
+#    exppos = pickle.load(f)
 #
 #print ttpos, xxpos, yypos
 #
@@ -194,5 +219,6 @@ with open('Arrays/'+FileNam+'.pick','wb') as f:
     pickle.dump(tpos, f)
     pickle.dump(xpos, f)
     pickle.dump(ypos, f)
+    pickle.dump(exppos, f)
 
 print '\nFinished!'

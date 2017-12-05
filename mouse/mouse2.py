@@ -51,13 +51,14 @@ EndSec = int(sys.argv[6])
 EndFrame = int(sys.argv[7])
 
 #
-# Read in three lists which correspond to the pixel and frame coordinates
-# for the mouse when tracking the shark
+# Read in four lists which correspond to the pixel and frame coordinates
+# for the mouse when tracking the shark, plus the expand factor.
 #
 with open('Arrays/'+FileNam+'.pick','rb') as f:
     tpos = pickle.load(f)
     xpos = pickle.load(f)
     ypos = pickle.load(f)
+    exppos = pickle.load(f)
 
 #
 # Initialise the clip, then read in the clip frames rate (fps), frame height
@@ -65,10 +66,14 @@ with open('Arrays/'+FileNam+'.pick','rb') as f:
 # smaller clip (SHA-XXX-001s.mp4) used in mouse.py. It is used to determine
 # if there should be a buffer of one region for negative images or not.
 #
+# Sometimes the fps needs to be hard-coded in because opencv cannot read it for
+# all mp4 files.
+#
 
 cap = cv2.VideoCapture(FileNam+'.mp4')
 ret,frame = cap.read()
-fps = float(cap.get(cv2.cv.CV_CAP_PROP_FPS))
+#fps = float(cap.get(cv2.cv.CV_CAP_PROP_FPS))
+fps = 24.8574
 frameHeight = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 frameWidth = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
 sizeRatX = frameWidth/960
@@ -102,13 +107,16 @@ for i in range(len(xpos)):
     # Need to use a larger crop for this so that the corners are not cut
     # off.
     #
-    crop2 = frame[ypos[i]-150:ypos[i]+150, xpos[i]-150:xpos[i]+150]
-    cv2.imwrite('pd01/'+FileNam+'-'+str(tpos[i])+'-'+str(xpos[i])+'-'+str(ypos[i])+'.jpg', crop2)
-    crop = frame[ypos[i]-225:ypos[i]+225, xpos[i]-225:xpos[i]+225]
+    crop2 = frame[ypos[i]-(exppos[i]/2):ypos[i]+(exppos[i]/2), xpos[i]-(exppos[i]/2):xpos[i]+(exppos[i]/2)]
+    resized_image2 = cv2.resize(crop2, (300,300))
+    cv2.imwrite('pd01/'+FileNam+'-'+str(tpos[i])+'-'+str(xpos[i])+'-'+str(ypos[i])+'.jpg', resized_image2)
+
+    crop = frame[ypos[i]-(3*exppos[i]/4):ypos[i]+(3*exppos[i]/4), xpos[i]-(3*exppos[i]/4):xpos[i]+(3*exppos[i]/4)]
     for p in range(45,360,45):
-        M = cv2.getRotationMatrix2D((225,225),p,1)
-        dst = cv2.warpAffine(crop,M,(450,450))
-        dstsub = dst[75:375, 75:375]
+        M = cv2.getRotationMatrix2D((3*exppos[i]/4,3*exppos[i]/4),p,1)
+        dst = cv2.warpAffine(crop,M,(3*exppos[i]/2,3*exppos[i]/2))
+        resized_image = cv2.resize(dst, (450,450))
+        dstsub = resized_image[75:375, 75:375]
         cv2.imwrite('pd01/'+FileNam+'-'+str(tpos[i])+'-'+str(xpos[i])+'-'+str(ypos[i])+'-'+str(p)+'.jpg', dstsub)
 
     #
