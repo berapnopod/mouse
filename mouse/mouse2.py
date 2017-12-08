@@ -72,8 +72,8 @@ with open('Arrays/'+FileNam+'.pick','rb') as f:
 
 cap = cv2.VideoCapture(FileNam+'.mp4')
 ret,frame = cap.read()
-#fps = float(cap.get(cv2.cv.CV_CAP_PROP_FPS))
-fps = 24.8574
+fps = float(cap.get(cv2.cv.CV_CAP_PROP_FPS))
+#fps = 23.98  
 frameHeight = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 frameWidth = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
 sizeRatX = frameWidth/960

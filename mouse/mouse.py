@@ -107,8 +107,8 @@ def draw_circle(event,x,y,flags,param):
 #
 
 capo = cv2.VideoCapture(FileNam+'.mp4')
-#fps = float(capo.get(cv2.cv.CV_CAP_PROP_FPS))
-fps =24.8574
+fps = float(capo.get(cv2.cv.CV_CAP_PROP_FPS))
+#fps =23.98
 frameHeight = int(capo.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
 frameWidth = int(capo.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
 sizeRatX = frameWidth/960.
