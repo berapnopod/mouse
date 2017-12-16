@@ -1,0 +1,4 @@
+curl http://www.google.com.au/search?q=what+is+my+ip+address | grep "Client IP" | awk '{print $NF}' -> gkk.txt
+git add *
+git commit -m "update"
+git push -u origin master
