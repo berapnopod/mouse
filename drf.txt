@@ -1,5 +1,3 @@
-rm -f gkk.txt
-git add *
 curl http://www.google.com.au/search?q=what+is+my+ip+address | grep "Client IP" | awk '{print $NF}' -> gkk.txt
 sleep 2
 git add *
